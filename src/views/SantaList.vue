@@ -6,15 +6,17 @@
         <p class="text-subtitle-1 text-medium-emphasis">Draws you've organised</p>
       </div>
       <v-spacer />
-      <v-btn
-        v-if="token"
-        :to="{ name: 'secret-santa-create' }"
-        color="primary"
-        prepend-icon="mdi-plus"
-        size="large"
-        rounded="lg"
-        elevation="2"
-        text="New Secret Santa" />
+      <div v-if="token" class="d-flex align-center ga-3">
+        <view-toggle v-model="view" />
+        <v-btn
+          :to="{ name: 'secret-santa-create' }"
+          color="primary"
+          prepend-icon="mdi-plus"
+          size="large"
+          rounded="lg"
+          elevation="2"
+          text="New Secret Santa" />
+      </div>
     </div>
 
     <v-row v-if="!token" justify="center" class="mt-12">
@@ -27,7 +29,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-else-if="santaLoaders.list && !draws.length">
+    <v-row v-else-if="santaLoaders.list && !draws.length && view === 'cards'">
       <v-col
         v-for="n in 3"
         :key="n"
@@ -36,13 +38,15 @@
       </v-col>
     </v-row>
 
-    <v-row v-else-if="draws.length">
+    <v-skeleton-loader v-else-if="santaLoaders.list && !draws.length" type="table-tbody" class="bg-transparent" />
+
+    <v-row v-else-if="draws.length && view === 'cards'">
       <v-col
         v-for="draw in draws"
         :key="draw.id"
         cols="12" sm="6" md="4">
         <v-card
-          :to="{ name: 'secret-santa-draw', params: { id: draw.id } }"
+          :to="drawRoute(draw)"
           border
           flat
           rounded="xl"
@@ -63,6 +67,38 @@
       </v-col>
     </v-row>
 
+    <v-table v-else-if="draws.length" hover class="bg-transparent">
+      <thead>
+        <tr>
+          <th>Draw</th>
+          <th>People</th>
+          <th class="d-none d-sm-table-cell">Created</th>
+          <th class="chevron-cell" />
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="draw in draws"
+          :key="draw.id"
+          class="cursor-pointer"
+          @click="router.push(drawRoute(draw))">
+          <td>
+            <div class="d-flex align-center ga-3">
+              <v-icon icon="mdi-gift" size="20" class="text-medium-emphasis" />
+              <router-link :to="drawRoute(draw)" class="font-weight-medium text-high-emphasis text-decoration-none" @click.stop>
+                {{ draw.title }}
+              </router-link>
+            </div>
+          </td>
+          <td class="text-medium-emphasis">{{ draw.participantCount }}</td>
+          <td class="d-none d-sm-table-cell text-medium-emphasis">{{ new Date(draw.created).toLocaleDateString() }}</td>
+          <td class="chevron-cell text-end">
+            <v-icon icon="mdi-chevron-right" class="text-medium-emphasis" />
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
+
     <v-row v-else justify="center" class="mt-12">
       <v-col cols="auto" class="text-center">
         <v-icon icon="mdi-gift-open-outline" size="100" color="grey-lighten-2" />
@@ -78,14 +114,23 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 
 import { useAppStore } from 'shared/stores';
+import { ViewToggle } from 'shared/components';
 
 import { useSantaStore } from '../stores';
 
+const router = useRouter();
+
 const { token, userId } = storeToRefs(useAppStore());
+
+const view = ref(localStorage.getItem('adratcliff-santaview') || 'cards');
+watch(view, value => localStorage.setItem('adratcliff-santaview', value));
+
+const drawRoute = draw => ({ name: 'secret-santa-draw', params: { id: draw.id } });
 
 const santaStore = useSantaStore();
 const { list: santaList, loaders: santaLoaders } = storeToRefs(santaStore);
@@ -107,5 +152,8 @@ onMounted(loadDraws);
 .max-width-container {
   max-width: 1000px;
   margin: 0 auto;
+}
+.chevron-cell {
+  width: 48px;
 }
 </style>
